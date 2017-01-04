@@ -17,9 +17,6 @@ import java.util.TreeMap;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.stat.Frequency;
 import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.config.Loggers;
 import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -27,104 +24,30 @@ import weka.core.Utils;
 import weka.core.converters.ConverterUtils;
 
 /**
- *
- * @author tle
+ * @author Thien Duyen le
+ * 
  */
 public class GRules {
     
     private static final long serialVersionUID = 1L;
-    private static final Logger myLogger = LogManager.getLogger(GRules.class);
     
     final static int wraPrunning = 1;
     final static int jmeasurePrunning = 2;
     
     private final int prunningOption = GRules.jmeasurePrunning;
     
-    private final int headMaxTerms =  1;
+    private final int headMaxTerms =  2;
     private final double headCoverageThreshold = 0.2;
-    
-    public GRules(){
-    
-    }
-    public List<Rule> learnStreamingRules(Instances streamingExamples) throws Exception{
         
-         // train the rules learner
-        List<List<Term>> rightSideRules = learnRightSide(streamingExamples);
-        List<Rule> completedRules = induceCompleteRules(rightSideRules, streamingExamples);       
-        
-        return completedRules;
-    }
-    
-    public double learRulesEvaluation(Instances streamingExamples) throws Exception{
-        
-        List<List<Term>> rightSideRules = learnRightSide(streamingExamples);
-        List<Rule> completedRules = induceCompleteRules(rightSideRules, streamingExamples);  
-        
-        Iterator<Rule> rulesIterator;
-        List<Rule> kBestRules = null;
-                
-        // get k best rules
-        for(int kRules = 10; kRules <= 50; kRules = kRules + 5){
-            
-            TreeMap<Double, Rule> heuristicSortedTreeMap = new TreeMap<>(Collections.reverseOrder());
-
-            rulesIterator = completedRules.iterator();
-
-            while(rulesIterator.hasNext()){
-
-                Rule aRule = rulesIterator.next();
-
-                double selectingHeuristic = calcualteWRA(streamingExamples, aRule.getLeftSide(), aRule.getRightSdie());
-//                double selectingHeuristic = calculateSupport(dataset, aRule.getLeftSide());
-//                double selectingHeuristic = calcualteRuleJMeasure(dataset, aRule.getLeftSide(), aRule.getRightSdie());
-//                double selectingHeuristic = calcualteConfidence(dataset, aRule.getLeftSide(), aRule.getRightSdie());
-                
-//                myLogger.trace(aRule.nicePrint());
-                heuristicSortedTreeMap.put(selectingHeuristic, aRule);            
-            }        
-
-            kBestRules = new ArrayList<>();
-
-            // get k best rules
-            Set<Map.Entry<Double,Rule>> wraSortedTreeMapSet = heuristicSortedTreeMap.entrySet();
-            Iterator<Map.Entry<Double,Rule>> heuristicSortedTreeMapSetIterator = wraSortedTreeMapSet.iterator();
-
-            int ruleCount = 0;
-            while(heuristicSortedTreeMapSetIterator.hasNext() && ruleCount < kRules){
-                Map.Entry<Double,Rule> anEntry = heuristicSortedTreeMapSetIterator.next();
-                Rule aRule = anEntry.getValue();
-
-                kBestRules.add(aRule);
-                ruleCount++;
-            }
-
-            double kRulesTruePositiveRate = 100 * calcualteTruePostiveRate(streamingExamples, kBestRules);
-            double kRulesFalsePositiveRate = 100 * calcuateFalsePositiveRate(streamingExamples, kBestRules);
-
-
-            myLogger.trace("Select " + kRules + " best rules");
-            myLogger.trace("True positive rate: " + kRulesTruePositiveRate);
-            myLogger.trace("False postive rate: " + kRulesFalsePositiveRate);    
-            
-            kBestRules.stream().forEach((Rule aRule) -> {
-                myLogger.trace(aRule.nicePrint());
-            });
-        }
-        
-        return calcualteTruePostiveRate(streamingExamples, kBestRules);
-    }
-    
-    
     public List<List<Term>> learnRightSide(Instances dataset) throws Exception{
                  
+        // training dataset
         Instances originalDataset = new Instances(dataset);
         
-//        myLogger.trace("No. instances: " + originalDataset.size());
-        
-        // array of possible combination of terms for right hand-side
+        // list of possible combinations of terms for right-hand sides (HEADs)
         List<List<Term>> rightSideSet = new ArrayList<>();
         
-        // list of all possible term (original, shouldn't be changed)
+        // list of all possible term (original, shouldn't be changed throughout the learning process)
         List<Term> allTerms_original = new ArrayList<>();
         List<Term> allTerms = new ArrayList<>();
         
@@ -180,9 +103,6 @@ public class GRules {
                             valuesSummaryStatistics.addValue(attribteValue);
                         }
                         
-//                        myLogger.trace(valuesSummaryStatistics);
-                        myLogger.trace(termsD.get(termI).getAttribute());
-                        
                         double meanValue = valuesSummaryStatistics.getMean() == 0.0d ? 0.01 : valuesSummaryStatistics.getStandardDeviation();
                         double sdValue = valuesSummaryStatistics.getStandardDeviation() == 0.0d ? valuesSummaryStatistics.getMean() + (valuesSummaryStatistics.getMean() * 0.01) : valuesSummaryStatistics.getStandardDeviation();
                         
@@ -195,6 +115,7 @@ public class GRules {
                         
                         for (int instanceI = 0; instanceI < datasetD.size(); instanceI++) {
                             double instanceAttributeValue = datasetD.get(instanceI).value((int) termsD.get(termI).getAttributeIndex());
+                            
                             @SuppressWarnings("null")
                             double probabilityValue = attributeDistribution.density(instanceAttributeValue); 
                             attribteDistributionProbabilityValues.put(instanceAttributeValue, probabilityValue);
@@ -203,8 +124,6 @@ public class GRules {
                         double[] bounds = createNumericTerm(attribteDistributionProbabilityValues);
                         termsD.get(termI).setLowerBoundNumeric(bounds[0]);              
                         termsD.get(termI).setUpperBoundNumeric(bounds[1]);                       
-                        
-                        myLogger.trace(termsD.get(termI));
                         
                         String termString = termsD.get(termI).getAttributeValueDobuleString();
                         
@@ -231,9 +150,6 @@ public class GRules {
                              }
                         }
                         
-//                        myLogger.trace(termsD.get(termI));
-//                        myLogger.trace(termCoveredCount + ":" + datasetD.size());
-                        
                         double termProbabilityValue = (double) termCoveredCount / datasetD.size();
                         
                         // put term String and its corresponding probability into the map
@@ -241,19 +157,11 @@ public class GRules {
                     }
                 } 
                 
-                // if there are not enough term, then stop inducing
-
-                
-                myLogger.trace("Terms probability:");
-                myLogger.trace(termProbability);
-
                 // get the term with largest count from frequency distribution
                 String curentTermWithLargestCount = Utilities.keyWithBestValueFromMap(termProbability);
                 double highestProbabilityValue = termProbability.get(curentTermWithLargestCount);
                 
-                myLogger.trace("Term String with highest probability: " + curentTermWithLargestCount);
-                myLogger.trace("Coverage value: " + highestProbabilityValue);
-                // no more terms then stop looking
+                // if no more terms then stop looking
                 if(curentTermWithLargestCount == null){
                    break;
                 }               
@@ -268,13 +176,11 @@ public class GRules {
                 
                 // parse the term in form on double[] [attributeIndex, attributeValue] into an actual term object
                 Term currentBestTerm = Utilities.parseTermFromDoubleArray(allTerms, currentTermWithLargestCountDouble);
-                myLogger.trace("Term String with highest probability: " + currentBestTerm);
                 
                 // need to remove instances covered by the term from datasetD
                 Iterator<Instance> datasetDIterator = datasetD.iterator();
                 
                 setMetaDataString += "[";
-                myLogger.trace("Dataset size before removing instances not covered by best term: " + datasetD.size());
                 setMetaDataString += datasetD.size();
                 
                 while(datasetDIterator.hasNext()){
@@ -286,17 +192,14 @@ public class GRules {
                     }
                 }
 
-                myLogger.trace("Dataset size after removing instances not covered by best term: " + datasetD.size());
-                setMetaDataString += ":" + datasetD.size();
-                
+                setMetaDataString += ":" + datasetD.size();                
                 setMetaDataString += "]";
+                                
+                setMetaDataString += "[";
+                setMetaDataString += termsD.size();
                 
                 //  remove term related to the selected term
-                Iterator<Term> termIterator = termsD.iterator();
-                
-                setMetaDataString += "[";
-                myLogger.trace("size before removing best term: " + termsD.size());
-                setMetaDataString += termsD.size();
+                Iterator<Term> termIterator = termsD.iterator();               
                 
                 while(termIterator.hasNext()){
 
@@ -307,7 +210,6 @@ public class GRules {
                     }
                 }
 
-                myLogger.trace("size after removing best term: " + termsD.size());
                 setMetaDataString += ":" + termsD.size();
                 setMetaDataString += "]";
 
@@ -316,7 +218,6 @@ public class GRules {
                 }
                 
                 aSetOfTerms.add(currentBestTerm);
-                
             }
            
             // fixing bogus term error (when a term does not cover any instances at all)
@@ -338,9 +239,6 @@ public class GRules {
             
             // add set of sets
             rightSideSet.add(aSetOfTerms);
-            
-            
-
        }
                 
         Set<Map.Entry<List<Term>, String>> setMetaDatSet = setMetaData.entrySet();
@@ -358,14 +256,12 @@ public class GRules {
                 
                 Term aTerm = termListIterator.next();
                 
-                myLogger.info(aTerm.toString());
-                
                 if(termListIterator.hasNext() == true){
-                    myLogger.info( " AND " );
+                    System.out.println( " AND " );
                 }
             }
             
-            myLogger.info( " Stats: " + anEntry.getValue());
+            System.out.println( " Stats: " + anEntry.getValue());
         }
         
         return new ArrayList<>(rightSideSet);
@@ -911,14 +807,7 @@ public class GRules {
        
         for (int rightSideI = 0; rightSideI < rightSideSetIn.size(); rightSideI++) {
             boolean noMoreTermForLeft = false;
-            
-            // output message indicate to go to next part
 
-            myLogger.trace("=============================================");            
-            myLogger.trace("Introducing rules for: " + rightSideSetIn.get(rightSideI));
-            myLogger.trace("  BODY:");
-
-            
             Instances originalDataset = new Instances(dataset);
             
             // this block of code should be optimised, but not now
@@ -934,9 +823,7 @@ public class GRules {
             // remove all relative terms 
             removeRelativedTermsAttributeLevel(allTerms, aRightSide);
 
-    //        RemoveInstancesCoveredByTerms(datasetD, aRightSide);
-
-            myLogger.trace("current right hand-side: " + aRightSide);
+            // RemoveInstancesCoveredByTerms(datasetD, aRightSide);
 
             List<Term> usedTermsForLeft = new ArrayList<>();
 
@@ -1069,7 +956,6 @@ public class GRules {
                             
                             allTerms.get(termI).setLowerBoundNumeric(bounds[0]);              
                             allTerms.get(termI).setUpperBoundNumeric(bounds[1]);
-                            myLogger.trace(Arrays.toString(bounds));
                             
                             String termString = allTerms.get(termI).getAttributeValueDobuleString();
                             
@@ -1108,23 +994,6 @@ public class GRules {
                             jMeasureTerms.put(termString, JMeasureValue);
                         }
                     }
-
-                    myLogger.trace("Frequency for current iteration:");
-                    myLogger.trace(termFrequency);
-                    
-                    myLogger.trace("Conditional frequency for current iteration:");
-                    myLogger.trace(conditionalTermFrequency);
-                                        
-                    myLogger.trace("Conditional probability:");
-                    myLogger.trace(conditionalTermProbability);
-
-                    myLogger.trace("Term with best conditional probability: ");
-                    myLogger.trace(Utilities.parseTermFromString(allTerms, Utilities.keyWithBestValueFromMap(conditionalTermProbability)));
-                    myLogger.trace(Utilities.keyWithBestValueFromMap(conditionalTermProbability) + " - " + conditionalTermProbability.get(Utilities.keyWithBestValueFromMap(conditionalTermProbability)));
-
-                    myLogger.trace("Term with best J-measure value: ");
-                    myLogger.trace(Utilities.keyWithBestValueFromMap(jMeasureTerms) + " - " + jMeasureTerms.get(Utilities.keyWithBestValueFromMap(jMeasureTerms)));
-                    myLogger.trace(Utilities.parseTermFromString(allTerms, Utilities.keyWithBestValueFromMap(jMeasureTerms)));
                     
                     String curentTermWithLargestCount = Utilities.keyWithBestValueFromMap(conditionalTermProbability);
                                         
@@ -1141,16 +1010,12 @@ public class GRules {
                     // parse the term in form on double[] [attributeIndex, attributeValue] into an actual term object
                     Term currentBestTerm = Utilities.parseTermFromDoubleArray(allTerms, currentTermWithLargestCountDouble);
 
-                    myLogger.trace("Term with highest count current iteration: " + currentBestTerm);
-
                     if(currentBestTerm == null){
                         break;
                     }
 
                     List<Term> aLeftSideUndedicded = new ArrayList<>(aLeftSide);
                     aLeftSideUndedicded.add(currentBestTerm);
-
-                    myLogger.trace("Dataset size before removing instances not covered by best term: " + datasetD.size());
 
                     double currentWraChange = calcualteWRA(originalDataset, aLeftSideUndedicded, aRightSide) - calcualteWRA(originalDataset, aLeftSide, aRightSide);
 
@@ -1161,15 +1026,9 @@ public class GRules {
                         }
                     }
 
-
-                    myLogger.trace("Dataset size after removing instances not covered by best term: " + datasetD.size());
-
                     //  remove term related to the selected term
                     Iterator<Term> termIterator = allTerms.iterator();
-
-                    myLogger.trace("size before removing best term: " + allTerms.size());
-                    myLogger.trace("size before removing best term: " + allTerms);
-
+                    
                     while(termIterator.hasNext()){
 
                         Term aTerm = termIterator.next();
@@ -1178,9 +1037,6 @@ public class GRules {
                             termIterator.remove();
                         }
                     }
-
-                    myLogger.trace("size after removing best term: " + allTerms.size());
-                    myLogger.trace("size after removing best term: " + allTerms);
                                         
                     // check 0 coverage 
                     if((conditionalTermProbability.get(curentTermWithLargestCount) != 0.0d)){
@@ -1213,7 +1069,6 @@ public class GRules {
                                         tempLeft, 
                                         aRightSide);
 
-                                myLogger.trace(prospectiveJmeasureValue);
                                 if(aLeftSide.isEmpty() == true){
                                      aLeftSide.add(currentBestTerm);
                                     inducedTermsCount++;                                       
@@ -1252,27 +1107,12 @@ public class GRules {
 
                 // so these terms should not be used anymore
                 usedTermsForLeft.addAll(aLeftSide);
-
-                myLogger.trace(aLeftSide);
-                myLogger.trace(" THEN ");
-                myLogger.trace(aRightSide);
-                                
-                myLogger.trace("Dataset size before removing: " + originalDataset.size());
                 
                 removeInstancesCoveredByRule(originalDataset, aRule);
 
                 double ruleConfidence = calcualteConfidence(dataset, aRule.getLeftSide(), aRule.getRightSdie());
                 double ruleSupport = calculateSupport(dataset, aRule.getLeftSide());
                 
-                // remove 0 coverage rules
-                if(ruleConfidence != 0){
-                    if(aLeftSide.size() >0){
-                       // append rule to output window
-                       myLogger.trace("  " + aLeftSide + "(Conf: " + ruleConfidence + ", Supp: " + ruleSupport + ")");
-                                  
-                   }                   
-                }
-
                 // init all possible terms list
                 allTerms.addAll(allTerms_original);
 
@@ -1310,9 +1150,7 @@ public class GRules {
             
             ruleString.append("\n");
         }
-        
-        myLogger.trace(ruleString.toString());
-        
+                
         // get k best rules
         for(int kRules = 5; kRules <= 50; kRules = kRules + 5){
             
@@ -1350,23 +1188,13 @@ public class GRules {
 
             double kRulesTruePositiveRate = 100 * calcualteTruePostiveRate(dataset, kBestRules);
             double kRulesFalsePositiveRate = 100 * calcuateFalsePositiveRate(dataset, kBestRules);
-
-
-            myLogger.trace("Select " + kRules + " best rules");
-            myLogger.trace("True positive rate: " + kRulesTruePositiveRate);
-            myLogger.trace("False postive rate: " + kRulesFalsePositiveRate);    
-            
-            kBestRules.stream().forEach((aRule) -> {
-                myLogger.trace(aRule.nicePrint());
-            });
         }
         
         return ruleCollection;
     }
     
     private Rule predict(Instance anInstance, List<Rule> rulesCollection){
-        
-        
+               
         for (Rule aRule : rulesCollection) {
             List<Term> bodyPart = aRule.getLeftSide();  
             
@@ -1768,7 +1596,7 @@ public class GRules {
         GRules GRulesLearner = new GRules();
         
         try {
-        ConverterUtils.DataSource source = new ConverterUtils.DataSource("data/UciDataSets/nominal/Manchester.arff");
+        ConverterUtils.DataSource source = new ConverterUtils.DataSource("data/car.arff");
         Instances originalDataset = source.getDataSet();
         
         // split data 80/20
@@ -1785,11 +1613,13 @@ public class GRules {
         List<Rule> completedRules = GRulesLearner.induceCompleteRules(rightSideRules, originalDataset);
         
         // try to predict an instance
-        myLogger.info(test.get(10));
-        myLogger.info(GRulesLearner.predict(test.get(10), completedRules).nicePrint());
+        System.out.println("A testing instance: ");
+        System.out.println(test.get(10));
+        System.out.println("A rule covered the instance: ");
+        System.out.println(GRulesLearner.predict(test.get(10), completedRules).nicePrint());
         
         } catch (Exception ex) {
-            myLogger.error(ex);
+            System.err.println(ex.toString());
         }
     }
 }
