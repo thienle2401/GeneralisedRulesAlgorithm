@@ -56,12 +56,12 @@ Depend on the desired output when classifying a data instance, the user can modi
 Other contributors who participated in this project:
 
 * Frederic Stahl, University of Reading
-* Mohamed Medhat Gaber, Birmingham City University.
+* Mohamed Medhat Gaber, Birmingham City University
 * Chris Wrench, University of Reading
 
 ## Citing 
 
-If you want to refer to MOA in a publication, please cite the following JMLR paper:
+If you want to refer to this implementation in a publication, please cite the following paper:
 
 > Le, T., Stahl, F., Gaber, M. M., & Wrench, C. A Statistical Learning Method to Fast Generalised Rule Induction Directly from Raw Measurements
 
