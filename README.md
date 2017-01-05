@@ -19,7 +19,7 @@ Generate a ruleset from a training dataset.
 GRules GRulesLearner = new GRules();
 
 // load data from arff (Weka formmatted) data file
-DataSource source = new DataSource("data/UciDataSets/nominal/Manchester.arff");
+DataSource source = new DataSource("data/car.arff");
 
 // split data 80/20
 int trainSize = (int) Math.round(originalDataset.numInstances() * 0.8
