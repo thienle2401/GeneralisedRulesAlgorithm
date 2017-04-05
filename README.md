@@ -1,7 +1,7 @@
 # Generalised Rules Algorithm
 
 The expressiveness of descriptive models is of paramount importance in applications that examine the causality of relationships between variables. The implementation was used to carry out the experiment as presented in:
-> _"Le, T., Stahl, F., Gaber, M. M., & Wrench, C. A Statistical Learning Method to Fast Generalised Rule Induction Directly from Raw Measurements"._
+> _"Le, T., Stahl, F., Gaber, M. M., & Wrench, C. A (2016) Statistical Learning Method to Fast Generalised Rule Induction Directly from Raw Measurements. In Proceedings of the 15th IEEE International Conference on Machine Learning and Applications, Anaheim, California, USA, pp. 935-938"._
 
 ## Getting Started
 
